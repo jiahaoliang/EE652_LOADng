@@ -47,22 +47,38 @@
 #include "net/rime/route.h"
 #include "net/uip.h"
 
-
+#define MAX_BUF 	4
+#define MAX_COST_LEN 	8
 /*---------------------------------------------------------------------------*/
 /*Data Structures*/
 struct dist_tuple {
-	uint8_t hops;
+	uint8_t next_hop;
+	uint8_t orig_hop;
+	uint8_t prev_hop;
+	uint8_t buf[MAX_BUF];
 	unsigned long int seq_num;
-	int buf;
-	const rimeaddr_t dest;
-	const rimeaddr_t nexthop;
-	const rimeaddr_t prevhop;
+	char *route_cost[MAX_COST_LEN];
+	struct dis_tuple *next_item;
+	struct dis_tuple * prev_item;
+	/****************WEAK_LINKS??????????*********/
+	// int buf;
+	// const rimeaddr_t dest;
+	// const rimeaddr_t nexthop;
+	// const rimeaddr_t prevhop;
 };
 //The distance structure consists of a tuple (route_cost, weak_links), and
 //works together with its correspondent metrics.
 struct routing_tuple {
-	  uint24_bytes maximum_block_length_limit;
- 	  uint16_bytes minimum_block_length_limit;
+	unsigned char routing_family;//address of router lists
+	unsigned char routing_dest_len;//destination length
+	unsigned char routing_src_len; //source length
+	unsigned char routing_type;
+	
+	struct route_tuple *next;
+	const rimeaddr_t nexthop;
+	const rimeaddr_t prevhop;
+	
+	uint8_t time;
 };
 //Routing tuple entry structure for the LOADng routing table.
 struct route_entry {
@@ -79,18 +95,21 @@ struct route_entry {
 //This structure redefines the routing tuple with another name. Just defined to maintain compatibility with mesh.c , uip-over-mesh.h and other libraries that call for routes.
 struct pending_entry {
 	  struct pending_entry *pending_next;
-	  rimeaddr_t pending_dest;
-	  rimeaddr_t pending_nexthop;
-	  uint8_t seqno;
-	  uint8_t cost;
-	  uint8_t time;
-
-	  uint8_t decay;
+	  rimeaddr_t dest;
+	  rimeaddr_t orig;
+	  rimeaddr_t from;
+	  
+	  uint8_t pending_time;
 	  uint8_t time_last_decay;
+	  uint8_t RREQ_ID;
+	  uint8_t seq_num;
 };
 //Pending entry tuple structure for the Pending Acknowledgement Set.
 struct blacklist_tuple {
-	uint8_t 
+	//time =? BLACKLIST_TIME
+	unsigned int param_0;
+	unsigned int param_1;
+	unsigned char *ip;
 	const rimeaddr_t neighbor;
 	int buf;
 
@@ -99,13 +118,13 @@ struct blacklist_tuple {
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*Parameters and constants*/
-#define NUM_RS_ENTRIES 8
-#define NUM_BLACKLIST_ENTRIES 2 * NUM_RS_ENTRIES
-#define NUM_pending_ENTRIES NUM_RS_ENTRIES
-#define ROUTE_TIMEOUT 5 * CLOCK_SECOND
-#define NET_TRAVERSAL_TIME 2 * CLOCK_SECOND
-#define BLACKLIST_TIME 10 * CLOCK_SECOND
-#define METRICS 0
+#define NUM_RS_ENTRIES 				8 //max number of routes stored in the LOADng router
+#define NUM_BLACKLIST_ENTRIES 			2 * NUM_RS_ENTRIES
+#define NUM_pending_ENTRIES 			NUM_RS_ENTRIES
+#define ROUTE_TIMEOUT 				5 * CLOCK_SECOND
+#define NET_TRAVERSAL_TIME 			2 * CLOCK_SECOND
+#define BLACKLIST_TIME 				10 * CLOCK_SECOND
+#define METRICS 				0 //hopcount
 /*---------------------------------------------------------------------------*/
 #define DEBUG 0
 #if DEBUG
@@ -152,12 +171,12 @@ struct pending_entry *
 route_pending_list_lookup (const uip_ipaddr_t *from,
 const uip_ipaddr_t *orig, uint8_t seq_num)
 {
-		struct route_entry *e;
-
+		struct peding_entry *e;
 		e = route_lookup(dest);
 		if(e != NULL && rimeaddr_cmp(&e->nexthop, nexthop)) {
 				list_add(route_table, e);
 		}
+		return e;
 }
 /*---------------------------------------------------------------------------*/
 //Adds a pending entry to the Pending List.
@@ -165,31 +184,39 @@ struct pending_entry *
 route_pending_add(const uip_ipaddr_t *nexthop,
 const uip_ipaddr_t *dest, uint8_t RREQ_ID, clock_time_t timeout)
 {
-		struct route_entry *e;
-	  	uint8_t lowest_cost;
-	  	struct route_entry *best_entry;
+	// struct route_entry *e;
+	 // 	uint8_t lowest_cost;
+	 // 	struct route_entry *best_entry;
 
-	  	lowest_cost = -1;
-	  	best_entry = NULL;
+	 // 	lowest_cost = -1;
+	 // 	best_entry = NULL;
 	  
 
-	  for(e = list_head(route_table); e != NULL; e = list_item_next(e)) {
-			printf("route_lookup: comparing %d.%d.%d.%d with %d.%d.%d.%d\n", uip_ipaddr_to_quad(dest), uip_ipaddr_to_quad(&e->dest));
-		    if(rimeaddr_cmp(dest, &e->dest)) {
-				if(e->cost < lowest_cost) {
-					best_entry = e;
-					lowest_cost = e->cost;
-		      	}
-		   	}
-      }
-  	  return best_entry;
+	 // for(e = list_head(route_table); e != NULL; e = list_item_next(e)) {
+		// 	printf("route_lookup: comparing %d.%d.%d.%d with %d.%d.%d.%d\n", uip_ipaddr_to_quad(dest), uip_ipaddr_to_quad(&e->dest));
+		//     if(rimeaddr_cmp(dest, &e->dest)) {
+		// 		if(e->cost < lowest_cost) {
+		// 			best_entry = e;
+		// 			lowest_cost = e->cost;
+		//       		}
+		//     }
+  //    	  }
+  //	  return best_entry;
+		 struct pending_entry *p;
+  	 	 struct pending_entry *rt;
+  	 //find the route are pending
+  		 for(p = list_head(route_table); p != NULL; rt = list_item_next(p)){
+  	 		if(rimeaddr_cmp(&p->pending_dest, dest) == TRUE)
+  	 		rt = p;
+  	 	 }
+  	 return rt;
 }
 /*---------------------------------------------------------------------------*/
 //Looks for a Routing Tuple in the Routing Set.
 struct route_entry *
 route_lookup(const rimeaddr_t *dest)
 {
-	  struct route_entry *e;
+	  struct route_entry *rt;
 	  uint8_t lowest_cost;
 	  struct route_entry *best_entry;
 
@@ -197,12 +224,12 @@ route_lookup(const rimeaddr_t *dest)
 	  best_entry = NULL;
 	  
 	  /* Find the route with the lowest cost. */
-	  for(e = list_head(route_table); e != NULL; e = list_item_next(e)) {
+	  for(rt = list_head(route_table); rt != NULL; rt = list_item_next(rt)) {
 			printf("route_lookup: comparing %d.%d.%d.%d with %d.%d.%d.%d\n", uip_ipaddr_to_quad(dest), uip_ipaddr_to_quad(&e->dest));
-		    if(rimeaddr_cmp(dest, &e->dest)) {
+		    if(rimeaddr_cmp(dest, &rt->dest)) {
 				if(e->cost < lowest_cost) {
-					best_entry = e;
-					lowest_cost = e->cost;
+					best_entry = rt;
+					lowest_cost = rt->cost;
 		      	}
 		   	}
       }
