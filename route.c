@@ -85,11 +85,8 @@ struct route_entry {
 	  struct route_entry *next;
 	  rimeaddr_t dest;
 	  rimeaddr_t nexthop;
-	  uint8_t seqno;
-	  uint8_t cost;
-	  uint8_t time;
-
-	  uint8_t decay;
+	  uint8_t seq_num;
+	  uint8_t entr_time;
 	  uint8_t time_last_decay;
 };
 //This structure redefines the routing tuple with another name. Just defined to maintain compatibility with mesh.c , uip-over-mesh.h and other libraries that call for routes.
