@@ -53,17 +53,37 @@
 
 /*---------------------------------------------------------------------------*/
 /*Data Structures*/
-struct dist_tuple {};
-//The distance structure consists of a tuple (route_cost, weak_links), and
-//works together with its correspondent metrics.
-struct routing_tuple {};
+
 //Routing tuple entry structure for the LOADng routing table.
-struct route_entry {};
-//This structure redefines the routing tuple with another name. Just defined to maintain compatibility with mesh.c , uip-over-mesh.h and other libraries that call for routes.
-struct pending_entry {};
+struct routing_tuple {
+	struct routing_tuple* next;
+	//TODO: we need to figure out how to represent the type of an address
+	uint32_t R_dest_addr;
+	uint32_t R_next_addr;
+	struct dist_tuple R_dist;
+	uint16_t R_seq_num;
+	clock_time_t R_valid_time;
+	uint8_t R_metric:4;
+	uint8_t padding:4;	//not used, initialized to 0;
+};
+
+
 //Pending entry tuple structure for the Pending Acknowledgement Set.
-struct blacklist_tuple {};
+struct pending_entry {
+	struct pending_entry* next;
+	//TODO: we need to figure out how to represent the type of an address
+	uint32_t P_next_hop;
+	uint32_t P_originator;
+	clock_time_t P_ack_timeout;
+};
 //Blacklist tuple entry structure for the Blacklisted Neighbor Set.
+struct blacklist_tuple {
+	struct blacklist_tuple* next;
+	//TODO: we need to figure out how to represent the type of an address
+	uint32_t B_neighbor_address;
+	clock_time_t B_valid_time;
+};
+
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
