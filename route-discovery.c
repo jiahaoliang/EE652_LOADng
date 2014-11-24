@@ -65,8 +65,8 @@ struct rerr_message {
 	uint8_t error-code:4;
 	uint8_t addr-length:4;
 	/*TODO:both destination address and originator address length are not an instant*/
-	uint8_t *destination;
-	uint8_t *orginator;
+	linkaddr_t destination;
+	linkaddr_t orginator;
 };
 
 //This structure points to the information of a RERR packet.
@@ -81,7 +81,7 @@ struct rrep_ack_message {
 	uint8_t addr-length:4;
 	uint16_t rreq-id;
 	/*TODO:both destination address and originator address length are not an instant*/
-	uint8_t *orginator;
+	const rimeaddr_t orginator;
 };
 
 //This structure points to the information of a RREQ-ACK packet.
@@ -100,8 +100,8 @@ struct route_message {
 	uint16_t rreq-id;
 	uint8_t route-cost;
 	/*TODO:both destination address and originator address length are not an instant*/
-	uint8_t *destination;
-	uint8_t *orginator;
+	linkaddr_t destination;
+	linkaddr_t orginator;
 };
 
 //This structure points to the information of a RREQ or RREP packet.
@@ -113,18 +113,26 @@ struct route_discovery_packet {
 
 //A tuple in the Request List.
 struct request_tuple {
-	uint8_t P_next_hop;
-	uint8_t P_originator;
-	uint8_t P_ack_timeout;
+	uint8_t routing_family;
+	uint8_t routing_dest_len;
+	uint8_t routing_src_len; 
+	uint8_t routing_type;
+	
+	linkaddr_t nexthop;
+	linkaddr_t prevhop;
+	
+	uint8_t time;
 };
 
 
 //route discovery connection structure
 struct route_discovery_conn {
   /*TODO: address structure*/
-  linkaddr_t last_rreq_originator;
+  linkaddr_t t;
   uint8_t last_rreq_id;
   uint8_t rreq_id;
+  struct netflood_conn rreqconn;
+  struct unicast_conn rrepconn;
 };
 
 //route discovery callbacks structure
@@ -183,23 +191,40 @@ route_discovery_open(struct route_discovery_conn *c,
 		     uint16_t channels,
 		     const struct route_discovery_callbacks *callbacks)
 {
-
+	netflood_open(&c->rreqconn, time, channels + 0, &rreq_callbacks);
+	unicast_open(&c->rrepconn, channels + 1, &rrep_callbacks);
+	c->cb = callbacks;
 }
 /*---------------------------------------------------------------------------*/
 //Closes a route discovery connection.
 void
 route_discovery_close(struct route_discovery_conn *c)
 {
-
+	unicast_close(&c->rrepconn);
+	netflood_close(&c->rreqconn);
+	ctimer_stop(&c->t);
 }
 
 /*---------------------------------------------------------------------------*/
 //Starts a LOADng route discovery protocol.
 int
 route_discovery_discover(struct route_discovery_conn *c, const rimeaddr_t *addr,
-			 clock_time_t timeout)
-{
+			 clock_time_t timeout){
+	ctimer_set(&c->t, timeout, timeout_handler, c);
+	rrep_pending = 1;
+	/*generate broadcast message*/
+	linkaddr_t dest_copy;
+	char buf[MAXBUFSIZE];
+	struct route_msg *msg;
+	linkaddr_copy(&dest_copy, dest);
+	dest = &dest_copy;
+	msg->rreq_id = c->rreq_id;
+	linkaddr_copy(&msg->dest, dest);
+	strcpy(buf,route_msg);
+	netflood_send();
+	c->rreq_id++;
 
+	return 1;
 }
 /*---------------------------------------------------------------------------*/
 //Opens a route discovery repair procedure.
@@ -216,7 +241,13 @@ int
 route_discovery_rerr (struct route_discovery_conn *c, uint8_t Error_Code,
 		const rimeaddr_t *broken_source_addr, const rimeaddr_t *broken_dest_addr)
 {
-
+	linkaddr_t dest_copy;
+	char buf[MAXBUFSIZE];
+	struct rerr_packet *packet;
+	linkaddr_copy(&dest_copy, dest);
+	strcpy(buf,rerr_packet);
+	unicast_send();
+	c->rreq_id++;
 }
 
 /*---------------------------------------------------------------------------*/
