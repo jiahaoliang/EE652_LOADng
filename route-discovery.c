@@ -51,27 +51,87 @@
 #include <stdio.h>
 
 /*---------------------------------------------------------------------------*/
-/*Structures we need to implement*/
-struct tlv {};
 //This structure stores a TLV vector of the TLV block.
-struct rerr_message {};
+struct tlv {
+	uint8_t count:4;
+	uint8_t type:4;
+	uint8_t flags:4;
+	/* TODO:tlv-value should be implement when using,append after the struct*/
+	uint8_t *value;		
+};
+
 //This structure stores the <message> field of a RERR packet.
-struct rrep_ack_message {};
-//This structure stores the <message> field of a RREP-ACK packet.
-struct route_message {};
-//This structure stores the <message> field of a RREQ or RREP packet.72
-struct route_discovery_packet {};
-//This structure points to the information of a RREQ or RREP packet.
-struct rrep_ack_packet {};
-//This structure points to the information of a RREQ-ACK packet.
-struct rerr_packet {};
+struct rerr_message {
+	uint8_t error-code:4;
+	uint8_t addr-length:4;
+	/*TODO:both destination address and originator address length are not an instant*/
+	uint8_t *destination;
+	uint8_t *orginator;
+};
+
 //This structure points to the information of a RERR packet.
-struct request_tuple {};
+struct rerr_packet {
+	uint8_t type;
+	struct tlv tlv-block;
+	struct rerr_message;
+};
+
+//This structure stores the <message> field of a RREP-ACK packet.
+struct rrep_ack_message {
+	uint8_t addr-length:4;
+	uint16_t rreq-id;
+	/*TODO:both destination address and originator address length are not an instant*/
+	uint8_t *orginator;
+};
+
+//This structure points to the information of a RREQ-ACK packet.
+struct rrep_ack_packet {
+	uint8_t type;
+	struct tlv tlv-block;
+	struct rrep_ack_message;
+};
+
+//This structure stores the <message> field of a RREQ or RREP packet
+struct route_message {
+	uint8_t flags:4;
+	uint8_t addr-length:4;
+	uint8_t metric:4;
+	uint8_t weak-links:4;
+	uint16_t rreq-id;
+	uint8_t route-cost;
+	/*TODO:both destination address and originator address length are not an instant*/
+	uint8_t *destination;
+	uint8_t *orginator;
+};
+
+//This structure points to the information of a RREQ or RREP packet.
+struct route_discovery_packet {
+	uint8_t type;
+	struct tlv tlv-block;
+	struct route_message;
+};
+
 //A tuple in the Request List.
-struct route_discovery_callbacks {};
-//route discovery callbacks structure
-struct route_discovery_conn {};
+struct request_tuple {
+	uint8_t P_next_hop;
+	uint8_t P_originator;
+	uint8_t P_ack_timeout;
+};
+
+
 //route discovery connection structure
+struct route_discovery_conn {
+  /*TODO: address structure*/
+  linkaddr_t last_rreq_originator;
+  uint8_t last_rreq_id;
+  uint8_t rreq_id;
+};
+
+//route discovery callbacks structure
+struct route_discovery_callbacks {
+  struct route_discovery_conn *c;
+  }
+
 /*---------------------------------------------------------------------------*/
 
 #if CONTIKI_TARGET_NETSIM
