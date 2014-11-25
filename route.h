@@ -53,16 +53,27 @@
 
 #include "net/rime/rimeaddr.h"
 
-struct route_entry {
-  struct route_entry *next;
-  rimeaddr_t dest;
-  rimeaddr_t nexthop;
-  uint8_t seqno;
-  uint8_t cost;
-  uint8_t time;
+//The distance structure consists of a tuple (route_cost, weak_links), and
+//works together with its correspondent metrics.
+struct dist_tuple {
+	uint8_t route_cost;
+	uint8_t R_metric:4;
+	uint8_t padding:4;	//not used, initialized to 0;
+};
 
-  uint8_t decay;
-  uint8_t time_last_decay;
+//This structure redefines the routing tuple with another name.
+//Just defined to maintain compatibility with mesh.c , uip-over-mesh.h and other libraries that call for routes.
+//same as struct routing_tuple
+struct route_entry {
+	struct route_entry* next;
+	//TODO: we need to figure out how to represent the type of an address
+	rimeaddr_t R_dest_addr;
+	rimeaddr_t R_next_addr;
+	struct dist_tuple R_dist;
+	uint16_t R_seq_num;
+	clock_time_t R_valid_time;
+	uint8_t R_metric:4;
+	uint8_t padding:4;	//not used, initialized to 0;
 };
 
 void route_init(void);
