@@ -112,7 +112,7 @@ route_init(void)
 //Adds a route entry to the Routing Table.
 struct routing_tuple *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
-	  uint8_t cost, uint8_t seqno)
+		struct dist_tuple ∗dist, uint16_t seqno)
 {
 
 }
@@ -120,8 +120,8 @@ route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 /*---------------------------------------------------------------------------*/
 //Looks for an entry in the Pending List.
 struct pending_entry *
-route_pending_list_lookup (const uip_ipaddr_t *from,
-		const uip_ipaddr_t *orig, uint8_t seq_num)
+route_pending_list_lookup (const rimeaddr_t *from,
+		const rimeaddr_t *orig, uint16_t seq_num)
 {
 
 }
@@ -129,8 +129,8 @@ route_pending_list_lookup (const uip_ipaddr_t *from,
 /*---------------------------------------------------------------------------*/
 //Adds a pending entry to the Pending List.
 struct pending_entry *
-route_pending_add(const uip_ipaddr_t *nexthop,
-		const uip_ipaddr_t *dest, uint8_t RREQ_ID, clock_time_t timeout)
+route_pending_add(const rimeaddr_t *nexthop,
+		const rimeaddr_t *dest, uint16_t RREQ_ID, clock_time_t timeout)
 {
 
 }
@@ -147,7 +147,7 @@ route_lookup(const rimeaddr_t *dest)
 /*---------------------------------------------------------------------------*/
 //Searches a blacklist tuple in the Blacklist Table.
 struct blacklist_tuple *
-route_blacklist_lookup(const uip_ipaddr_t *addr )
+route_blacklist_lookup(const rimeaddr_t *addr )
 {
 
 }
@@ -155,7 +155,7 @@ route_blacklist_lookup(const uip_ipaddr_t *addr )
 /*---------------------------------------------------------------------------*/
 //Adds a blacklist entry to the Blacklist.
 struct blacklist_tuple *
-route_blacklist_add(const uip_ipaddr_t *neighbor, clock_time_t timeout ){
+route_blacklist_add(const rimeaddr_t *neighbor, clock_time_t timeout ){
 
 }
 
