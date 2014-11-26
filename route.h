@@ -77,8 +77,9 @@ struct route_entry {
 };
 
 void route_init(void);
-int route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
-	      uint8_t cost, uint8_t seqno);
+struct routing_tuple *
+route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
+		struct dist_tuple ∗dist, uint16_t seqno);
 struct route_entry *route_lookup(const rimeaddr_t *dest);
 void route_refresh(struct route_entry *e);
 void route_decay(struct route_entry *e);
