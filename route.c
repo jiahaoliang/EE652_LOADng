@@ -61,7 +61,7 @@ struct routing_tuple {
 	struct dist_tuple R_dist;
 	uint16_t R_seq_num;
 	clock_time_t R_valid_time;
-	uint8_t R_metric:4;
+	uint8_t R_metric:4;	//R_metric: type of routing metric. 0, by default, means using hop-count
 	uint8_t padding:4;	//not used, initialized to 0;
 };
 
@@ -101,12 +101,63 @@ struct blacklist_tuple {
 #define PRINTF(...)
 #endif
 
+/*
+ * List of Routing Set.
+ */
+LIST(route_set);
+MEMB(route_set_mem, struct routing_tuple, NUM_RS_ENTRIES);
+/*
+ * List of Blacklisted Neighbor Set
+ */
+LIST(blacklist_set);
+MEMB(blacklist_set_mem, struct blacklist_tuple, NUM_BLACKLIST_ENTRIES);
+/*
+ * List of Pending Acknowledgement Set
+ */
+LIST(pending_set);
+MEMB(pending_set_mem, struct pending_entry, NUM_pending_ENTRIES);
+
+static struct ctimer t;
+
+static int max_route_time = ROUTE_TIMEOUT;
+static int max_blacklist_time = BLACKLIST_TIME;
+
+/*---------------------------------------------------------------------------*/
+//Periodically remove entries in Routing Set
+static void
+periodic(void *ptr)
+{
+  struct routing_tuple *e;
+
+  for(e = list_head(route_set); e != NULL; e = list_item_next(e)) {
+    e->R_valid_time++;
+    if(e->R_valid_time >= max_route_time) {
+      PRINTF("route periodic: removing entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
+	     e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
+	     e->R_next_addr.u8[0], e->R_next_addr.u8[1],
+	     e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+      list_remove(route_set, e);
+      memb_free(&route_set_mem, e);
+    }
+  }
+
+  ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
+}
 /*---------------------------------------------------------------------------*/
 //Allocates and initializes route tables.
 void
 route_init(void)
 {
+	  list_init(route_set);
+	  memb_init(&route_set_mem);
 
+	  list_init(blacklist_set);
+	  memb_init(&blacklist_set_mem);
+
+	  list_init(pending_set);
+	  memb_init(&pending_set_mem);
+
+	  ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
 }
 /*---------------------------------------------------------------------------*/
 //Adds a route entry to the Routing Table.
