@@ -13,8 +13,8 @@ Please check out ***Implementation and Testing of LOADng: a Routing Protocol for
 - [x] Example to check a box at README.md  
 
 route.c  
-- [ ] route_init  
-- [ ] route_add  
+- [x] route_init  
+- [x] route_add  
 - [ ] route_pending_list_lookup  
 - [ ] route_pending_add  
 - [ ] route_lookup  

@@ -46,9 +46,11 @@
 #include "lib/list.h"
 #include "lib/memb.h"
 #include "sys/ctimer.h"
-#include "net/rime/route.h"
+//#include "net/rime/route.h"
 #include "contiki-conf.h"
 #include "net/uip.h"
+
+#include "route.h"	//just for eclipse
 
 /*---------------------------------------------------------------------------*/
 /*Data Structures*/
@@ -141,6 +143,8 @@ periodic(void *ptr)
     }
   }
 
+  //TODO: periodically remove entries in blacklist set every BLACKLIST_TIME
+
   ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
 }
 /*---------------------------------------------------------------------------*/
@@ -165,7 +169,42 @@ struct routing_tuple *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 		struct dist_tuple ∗dist, uint16_t seqno)
 {
+	struct routing_tuple *e;
 
+	/* Avoid inserting duplicate entries. */
+	e = route_lookup(dest);
+	if(e != NULL && rimeaddr_cmp(&e->R_next_addr, nexthop)) {
+		list_remove(route_set, e);
+	} else {
+		/* Allocate a new entry or reuse the oldest entry with highest cost. */
+		e = memb_alloc(&route_set_mem);
+		if(e == NULL) {
+		  /* Remove oldest entry.  XXX */
+		  e = list_chop(route_set);
+		  PRINTF("route_add: removing entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
+			 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
+			 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
+			 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+		}
+	}
+
+	rimeaddr_copy(&e->R_dest_addr, dest);
+	rimeaddr_copy(&e->R_next_addr, nexthop);
+	(e->R_dist).route_cost = dist->route_cost;
+	(e->R_dist).weak_links = dist->weak_links;
+	e->R_seq_num = seqno;
+	e->R_valid_time = 0;
+	e->R_metric = METRICS;
+
+	/* New entry goes first. */
+	list_push(route_table, e);
+
+	PRINTF("route_add: new entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
+		 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
+		 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
+		 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+
+	return e;
 }
 
 /*---------------------------------------------------------------------------*/
