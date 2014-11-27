@@ -165,7 +165,7 @@ route_init(void)
 }
 /*---------------------------------------------------------------------------*/
 //Adds a route entry to the Routing Table.
-struct routing_tuple *
+struct routing_entry *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 		struct dist_tuple ∗dist, uint16_t seqno)
 {
@@ -204,7 +204,7 @@ route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 		 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
 		 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
 
-	return e;
+	return (struct routing_entry*)e;
 }
 
 /*---------------------------------------------------------------------------*/
