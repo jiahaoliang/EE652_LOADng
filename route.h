@@ -57,7 +57,7 @@
 //works together with its correspondent metrics.
 struct dist_tuple {
 	uint8_t route_cost;
-	uint8_t R_metric:4;
+	uint8_t weak_links:4;
 	uint8_t padding:4;	//not used, initialized to 0;
 };
 
@@ -72,7 +72,7 @@ struct route_entry {
 	struct dist_tuple R_dist;
 	uint16_t R_seq_num;
 	clock_time_t R_valid_time;
-	uint8_t R_metric:4;
+	uint8_t R_metric:4;	//R_metric: type of routing metric. 0, by default, means using hop-count
 	uint8_t padding:4;	//not used, initialized to 0;
 };
 
