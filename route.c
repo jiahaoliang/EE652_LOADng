@@ -230,7 +230,27 @@ route_pending_add(const rimeaddr_t *nexthop,
 struct route_entry *
 route_lookup(const rimeaddr_t *dest)
 {
+	/*TODO: just started, come back and finish this function*/
+	struct routing_tuple *e;
+	uint8_t lowest_cost;
+	struct routing_tuple *best_entry;
 
+	lowest_cost = -1;	//lowest_cost is an unsigned int, -1 means the largest number
+	best_entry = NULL;
+
+	/* Find the route with the lowest cost. */
+	for(e = list_head(route_table); e != NULL; e = list_item_next(e)) {
+	/*    printf("route_lookup: comparing %d.%d.%d.%d with %d.%d.%d.%d\n",
+	   uip_ipaddr_to_quad(dest), uip_ipaddr_to_quad(&e->dest));*/
+
+		if(rimeaddr_cmp(dest, &e->dest)) {
+		  if(e->cost < lowest_cost) {
+			best_entry = e;
+			lowest_cost = e->cost;
+		  }
+		}
+	}
+	return best_entry;
 }
 
 
