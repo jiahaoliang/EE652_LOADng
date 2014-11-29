@@ -190,8 +190,8 @@ route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 
 	rimeaddr_copy(&e->R_dest_addr, dest);
 	rimeaddr_copy(&e->R_next_addr, nexthop);
-	(e->R_dist).route_cost = dist->route_cost;
-	(e->R_dist).weak_links = dist->weak_links;
+	e->R_dist.route_cost = dist->route_cost;
+	e->R_dist.weak_links = dist->weak_links;
 	e->R_seq_num = seqno;
 	e->R_valid_time = 0;
 	e->R_metric = METRICS;
@@ -202,7 +202,7 @@ route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 	PRINTF("route_add: new entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
 		 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
 		 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
-		 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+		 e->R_metric, e->R_dist.route_cost, e->R_dist.weak_links);
 
 	return (struct routing_entry*)e;
 }
@@ -230,7 +230,6 @@ route_pending_add(const rimeaddr_t *nexthop,
 struct route_entry *
 route_lookup(const rimeaddr_t *dest)
 {
-	/*TODO: just started, come back and finish this function*/
 	struct routing_tuple *e;
 	uint8_t lowest_cost;
 	struct routing_tuple *best_entry;
@@ -239,14 +238,14 @@ route_lookup(const rimeaddr_t *dest)
 	best_entry = NULL;
 
 	/* Find the route with the lowest cost. */
-	for(e = list_head(route_table); e != NULL; e = list_item_next(e)) {
+	for(e = list_head(route_set); e != NULL; e = list_item_next(e)) {
 	/*    printf("route_lookup: comparing %d.%d.%d.%d with %d.%d.%d.%d\n",
 	   uip_ipaddr_to_quad(dest), uip_ipaddr_to_quad(&e->dest));*/
 
-		if(rimeaddr_cmp(dest, &e->dest)) {
-		  if(e->cost < lowest_cost) {
+		if(rimeaddr_cmp(dest, &e->R_dest_addr)) {
+		  if((e->R_dist).route_cost < lowest_cost) {
 			best_entry = e;
-			lowest_cost = e->cost;
+			lowest_cost = (e->R_dist).route_cost;
 		  }
 		}
 	}
