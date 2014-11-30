@@ -46,11 +46,9 @@
 #include "lib/list.h"
 #include "lib/memb.h"
 #include "sys/ctimer.h"
-//#include "net/rime/route.h"
+#include "net/rime/route.h"
 #include "contiki-conf.h"
 #include "net/uip.h"
-
-#include "route.h"	//just for eclipse
 
 /*---------------------------------------------------------------------------*/
 /*Data Structures*/
@@ -99,7 +97,7 @@ struct blacklist_tuple {
 #define METRICS 0
 /*---------------------------------------------------------------------------*/
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
