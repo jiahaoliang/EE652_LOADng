@@ -59,13 +59,13 @@ struct tlv {
 	uint8_t flags:4;
 	uint8_t *value;		
 };*/
-#define MAXA(A,B) ( ((A>B)&&((A-B)<=(MAXVALUE/2)))||((A<B)&&((B-A)>(MAXVALUE/2))) )
 
 //This structure stores the <message> field of a RREQ and RREPpacket
 //RREQ-Specific and RREP Message
 typedef struct general_message{
 //TODO: addr-length maybe neglect
 //	uint8_t addr-length:4;
+	uint8_t type;
 	uint16_t seq_num;
 	//TODO: Table 8
 	/*if metric_type set to 0 hop_count is used otherwise route_metric is used*/
@@ -112,7 +112,7 @@ struct routing_set{
 }
 
 struct local_interface_set{
-	linkaddr_t inter_addr;
+	linkaddr_t I_local_iface_addr;
     struct local_interface_set *next;
 }
 
@@ -135,40 +135,11 @@ struct pending_acknowledgment_set{
 	clock_time_t P_ack_timeout;
     struct pending_acknowledgment_set *next;
 }
-/*
-//This structure points to the information of a RERR packet.
-struct rerr_packet {
-	uint8_t type;
-	struct tlv tlv-block;
-	struct rerr_message;
-};
 
-//This structure points to the information of a RREQ-ACK packet.
-struct rrep_ack_packet {
-	uint8_t type;
-	struct tlv tlv-block;
-	struct rrep_ack_message;
-};
+/*---------------------------------------------------------------------------*/
 
-//This structure points to the information of a RREQ or RREP packet.
-struct route_discovery_packet {
-	uint8_t type;
-	struct tlv tlv-block;
-	struct route_message;
-};
-//A tuple in the Request List.
-struct request_tuple {
-	uint8_t routing_family;
-	uint8_t routing_dest_len;
-	uint8_t routing_src_len; 
-	uint8_t routing_type;
 	
-	linkaddr_t nexthop;
-	linkaddr_t prevhop;
-	
-	uint8_t time;
-};
-*/
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 
@@ -202,8 +173,37 @@ struct request_tuple {
 #define MAXVALUE 255
 #define VERBOSE 1
 #define BACKOFF 1
-/*---------------------------------------------------------------------------*/
+#define MAXA(A,B) ( ((A>B)&&((A-B)<=(MAXVALUE/2)))||((A<B)&&((B-A)>(MAXVALUE/2))) )
 
+/*---------------------------------------------------------------------------*/
+/*check if rreq or rrep is valid return 0 means valid return -1 means invalid*/
+int valid_check(struct general_message *input){
+	//address check is skipped;
+	struct local_interface_set *cur = local_inter;
+	for(cur != NULL){
+		if( cur->I_local_iface_addr == input->originator){
+			reutrn -1;
+		}
+		cur = cur->next;
+	}
+	struct routing_set *cur1 = route_list_head;
+	for(cur1 != NULL){
+		if( (cur1->R_dest_addr == input->originator) &&MAXA(cur1->R_seq_num,input->seq_num)){
+			reutrn -1;
+		}
+		cur1 = cur1->next;
+	}
+	if(input->type == RREQ_TYPE){
+		struct blacklisted_neighbor_set *cur2 = black_list_head;
+		for(cur2 != NULL){
+			if( cur2->B_neighbor_address == input->originator){
+				reutrn -1;
+			}
+			cur2 = cur2->next;
+		}
+	}
+	return 0;
+}
 
 /*---------------------------------------------------------------------------*/
 static void
