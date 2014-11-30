@@ -53,6 +53,15 @@
  * \author
  *         Adam Dunkels <adam@sics.se>
  */
+ 
+/*
+ This specification defines four Message Type
+*/
+#define RREQ_TYPE 0X0
+#define RREP_TYPE 0X1
+#define RREP_ACK_TYPE 0X2
+#define RERR_TYPE 0X3
+
 
 #ifndef __ROUTE_DISCOVERY_H__
 #define __ROUTE_DISCOVERY_H__
@@ -77,6 +86,8 @@ struct route_discovery_conn {
   rimeaddr_t last_rreq_originator;
   uint16_t last_rreq_id;
   uint16_t rreq_id;
+  uint16_t hop_count;
+  uint16_t hop_limit;
   const struct route_discovery_callbacks *cb;
 };
 
