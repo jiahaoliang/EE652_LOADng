@@ -15,13 +15,13 @@ Please check out ***Implementation and Testing of LOADng: a Routing Protocol for
 route.c  
 - [x] route_init  
 - [x] route_add  
-- [ ] route_pending_list_lookup  
-- [ ] route_pending_add  
-- [ ] route_lookup  
-- [ ] route_blacklist_lookup  
-- [ ] route_blacklist_add  
-- [ ] route_refresh  
-- [ ] route_remove  
+- [x] route_pending_list_lookup  
+- [x] route_pending_add  
+- [x] route_lookup  
+- [x] route_blacklist_lookup  
+- [x] route_blacklist_add  
+- [x] route_refresh  
+- [x] route_remove  
 
 
 route-discovery.c  
