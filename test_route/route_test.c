@@ -37,7 +37,7 @@
  *         Jiahao Liang <jiahaoli@usc.edu>
  */
 #include "contiki.h"
-#include "net/rime.h"
+#include "net/rime/route.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -68,7 +68,7 @@ PROCESS_THREAD(route_test, ev, data)
   for (i = 0; i < ADD_NUM; i++) {
 	  dist.route_cost = i;
 	  dist.weak_links = 0;
-	  printf("test: route_add dest = %d.%d\n", addr[i].u8[0], addr[i].u8[1]\n);
+	  printf("test: route_add dest = %d.%d\n", addr[i].u8[0], addr[i].u8[1]);
 	  route_add(&addr[i], &addr[i+1], &dist, i);
 	  printf("test: route_lookup dest = %d.%d\n", addr[i].u8[0], addr[i].u8[1]);
 	  route_lookup(&addr[i]);

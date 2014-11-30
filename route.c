@@ -86,9 +86,9 @@ struct blacklist_tuple {
 /*---------------------------------------------------------------------------*/
 /*Parameters and constants*/
 #define NUM_RS_ENTRIES 8
-#define NUM_BLACKLIST_ENTRIES 2 ∗ NUM_RS_ENTRIES
+#define NUM_BLACKLIST_ENTRIES 2 * NUM_RS_ENTRIES
 #define NUM_pending_ENTRIES NUM_RS_ENTRIES
-#define ROUTE_TIMEOUT 5 ∗ CLOCK_SECOND
+#define ROUTE_TIMEOUT 5 * CLOCK_SECOND
 /*
  * not used
  * #define NET_TRAVERSAL_TIME 2 ∗ CLOCK_SECOND
@@ -170,11 +170,12 @@ route_lookup(const rimeaddr_t *dest)
 		PRINTF("route_lookup: found entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
 			 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
 			 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
-			 e->e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+			 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
 		return best_entry;
 	} else {
 		PRINTF("route_lookup: cannot found entry to %d.%d\n",
 			 (*dest).u8[0], (*dest).u8[1]);
+		return NULL;
 	}
 
 }
@@ -183,7 +184,7 @@ route_lookup(const rimeaddr_t *dest)
 //Adds a route entry to the Routing Table.
 struct routing_entry *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
-		struct dist_tuple ∗dist, uint16_t seqno)
+		struct dist_tuple *dist, uint16_t seqno)
 {
 	struct routing_tuple *e;
 
@@ -213,7 +214,7 @@ route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 	e->R_metric = METRICS;
 
 	/* New entry goes first. */
-	list_push(route_table, e);
+	list_push(route_set, e);
 
 	PRINTF("route_add: new entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
 		 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
@@ -329,7 +330,6 @@ route_blacklist_lookup(const rimeaddr_t *addr )
 
 	return NULL;
 }
-}
 
 /*---------------------------------------------------------------------------*/
 //Adds a blacklist entry to the Blacklist.
@@ -421,7 +421,7 @@ pending_remove(struct pending_entry *e)
 void
 blacklist_remove(struct blacklist_tuple *e)
 {
-	if (e! = NULL) {
+	if (e != NULL) {
 	  PRINTF("blacklist_remove: removing blacklisted neighbor %d.%d\n",
 		 e->B_neighbor_address.u8[0], e->B_neighbor_address.u8[1]);
 	  list_remove(blacklist_set, e);
