@@ -206,6 +206,59 @@ int valid_check(struct general_message *input){
 }
 
 /*---------------------------------------------------------------------------*/
+/*RREP reveived message processing*/
+static void
+rrep_packet_received(struct unicast_conn *uc, const linkaddr_t *from)
+{
+  rrep_message *msg = packetbuf_dataptr();
+  linkaddr_t dest;
+  struct route_entry * rt;
+
+  struct route_discovery_conn *c = (struct route_discovery_conn *)
+    ((char *)uc - offsetof(struct route_discovery_conn, rrepconn));
+
+  PRINTF("%d.%d: rrep_packet_received from %d.%d towards %d.%d len %d\n",
+	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+	 from->u8[0],from->u8[1],
+	 msg->destination.u8[0],msg->destination.u8[1],
+	 packetbuf_datalen());
+
+  PRINTF("from %d.%d hops %d rssi %d lqi %d\n",
+	 from->u8[0], from->u8[1],
+	 msg->hop_count,
+	 packetbuf_attr(PACKETBUF_ATTR_RSSI),
+	 packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY));
+
+
+  if(linkaddr_cmp(&msg->destination, &linkaddr_node_addr)) {
+    PRINTF("rrep for us!\n");
+    rrep_pending = 0;
+    ctimer_stop(&c->t);
+    if(c->cb->new_route) {
+      linkaddr_t originator;
+
+      /* If the callback modifies the packet, the originator address
+         will be lost. Therefore, we need to copy it into a local
+         variable before calling the callback. */
+      linkaddr_copy(&originator, &msg->originator);
+      c->cb->new_route(c, &originator);
+    }
+
+  } else {
+    linkaddr_copy(&dest, &msg->destination);
+
+    rt = route_lookup(&msg->destination);
+    if(rt != NULL) {
+      PRINTF("forwarding to %d.%d\n", rt->nexthop.u8[0], rt->nexthop.u8[1]);
+      msg->hop_count++;
+      msg->hop_limit--;
+      unicast_send(&c->rrepconn, &rt->nexthop);
+    } else {
+      PRINTF("%d.%d: no route to %d.%d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1], msg->dest.u8[0], msg->dest.u8[1]);
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
 static void
 send_rreq(struct route_discovery_conn *c, const linkaddr_t *dest)
 {
