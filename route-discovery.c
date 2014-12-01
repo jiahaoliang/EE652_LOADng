@@ -78,10 +78,8 @@ typedef struct rerr_message_struture {
 	//TODO:uint8_t addr-length:4;
 	uint8_t hop_limit;
 	uint8_t errorcode;
-	//TODO: how to implement unreachable addr
 	linkaddr_t unreachable;
 	linkaddr_t orginator;
-	//TODO:need modified to meet TLV requirement
 	linkaddr_t destination;
 }rerr_message;
 
@@ -216,14 +214,14 @@ send_rrep_ack(struct route_discovery_conn *c, rreq_message *input)
 	struct route_entry *rt;
 	linkaddr_t dest_copy;
 	rrep_ack_message *msg;
-	linkaddr_copy(&dest_copy, dest);
+	linkaddr_copy(&dest_copy, &input->orginator);
 	dest = &dest_copy;
 	packetbuf_clear();
 	msg = packetbuf_dataptr();
 	packetbuf_set_datalen(sizeof(struct rreq_message));
 	msg->seqno = input->seqno;
 
-	linkaddr_copy(&msg->destination,input->orginator);
+	linkaddr_copy(&msg->destination,&input->orginator);
 
 	rt = route_lookup(input->orginator);
 	if(rt != NULL) {
@@ -239,10 +237,35 @@ send_rrep_ack(struct route_discovery_conn *c, rreq_message *input)
 		   dest->u8[0],dest->u8[1]);
 	}
 }
+/*------------------------------------------------------------------------------------------------------------------------*/
+static void
+send_rerr(struct route_discovery_conn *c, rerr_message *input)
+{
+	struct route_entry *rt;
+	rerr_message *msg;
+	packetbuf_clear();
+	msg = packetbuf_dataptr();
+	packetbuf_set_datalen(sizeof(struct rerr_message));
+
+	msg->errorcode = input->errorcode;
+	msg->hop_limit = input->hop_limit;
+	linkaddr_copy(&msg->unreachable,&input->unreachable);
+	linkaddr_copy(&msg->destination,&input->destination);
+	linkaddr_copy(&msg->originator,&input->originator);
+
+	rt = route_lookup(&msg->destination);
+	if(rt != NULL) {
+	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
+		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+		   dest->u8[0],dest->u8[1],
+		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
+	    unicast_send(&c->rrepconn, &rt->nexthop);
+	}
+}
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 static int
-rreq_msg_process(struct netflood_conn *nf, const linkaddr_t *from,
+rreq_msg_reveived(struct netflood_conn *nf, const linkaddr_t *from,
 		     const linkaddr_t *originator, uint8_t seqno, uint8_t hops)
 {
 	int ret_val = 0;
@@ -311,7 +334,7 @@ rreq_msg_process(struct netflood_conn *nf, const linkaddr_t *from,
 }
 /*------------------------------------------------------------------------------------------------------------------------*/
 static int
-rrep_msg_process(struct unicast_conn *uc, const linkaddr_t *from)
+rrep_msg_reveived(struct unicast_conn *uc, const linkaddr_t *from)
 {
 	int ret_val = 0;
 	rrep_message *msg = packetbuf_dataptr();
@@ -348,20 +371,32 @@ rrep_msg_process(struct unicast_conn *uc, const linkaddr_t *from)
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------------------------------------------------*/
+static int
+rerr_msg_process(struct unicast_conn *uc, const linkaddr_t *from)
+{
+	rerr_message *msg = packetbuf_dataptr();
+	rerr_message new_msg;
+	struct route_entry *rt;
+	struct route_discovery_conn *c = (struct route_discovery_conn *)
+    ((char *)nf - offsetof(struct route_discovery_conn, rreqconn));
 
-void rreq_initial(rreq_message* input,linkaddr_t *dest){
-	//TODO: need modified later
-	input->metric_type = 0;
-	input->route_metric = 0;
-	//TODO: set to next unused number
-	input->seqno = 0;
-	input->hop_count = 0;
-	input->hop_limit = MAX_HOP_LIMIT;
-	linkaddr_copy(&input->destination,dest);
-	linkaddr_copy(&input->originator,linkaddr_node_addr);
+	new_msg->hop_limit = msg->hop_limit - 1;
+	new_msg->type = msg_type;
+
+	rt = route_lookup(msg->unreachable);
+	if(rt!==NULL &&linkaddr_cmp(rt->nexthop,from)){
+			route_remove(rt);
+			route_blacklist_add(rt);
+			if(msg->hop_limit>0){
+				send_rerr(c,new_msg);
+			}
+			return 1;
+	}
+	send_rerr(c,new_msg);
+	return 0;
 }
-
 /*------------------------------------------------------------------------------------------------------------------------*/
 static const struct unicast_callbacks rrep_callbacks = {rrep_packet_received};
 static const struct netflood_callbacks rreq_callbacks = {rreq_packet_received, NULL, NULL};
@@ -414,4 +449,35 @@ route_discovery_discover(struct route_discovery_conn *c, const linkaddr_t *addr,
 	rrep_pending = 1;
 	send_rreq(c, &new_msg);
 	return 1;
+}
+/*------------------------------------------------------------------------------------------------------------------------*/
+int
+route_discovery_repairs(struct route_discovery_conn *c, const linkaddr_t *addr,
+			 clock_time_t timeout)
+{
+
+}
+/*------------------------------------------------------------------------------------------------------------------------*/
+//generate the err msg
+int
+route_discovery_rerr(struct route_discovery_conn *c, uint8_t Error_Code,const linkaddr_t *broken_source_addr,
+		const linkaddr_t *broken_dest_addr)
+{
+	//A packet with an RERR message is generated by the LOADng Router,detecting the link breakage
+	struct route_entry *rt;
+	rerr_message msg;
+	packetbuf_clear();
+	msg = packetbuf_dataptr();
+	packetbuf_set_datalen(sizeof(struct rerr_message));
+	msg->errorcode = Error_Code;
+	msg->hop_limit = MAX_HOP_LIMIT;
+	linkaddr_copy(&msg->unreachable,broken_dest_addr);
+	linkaddr_copy(&msg->destination,broken_source_addr);
+	linkaddr_copy(&msg->originator,&linkaddr_node_addr);
+
+	rt = route_lookup(&msg->destination);
+	if(rt != NULL) {
+	    unicast_send(&c->rrepconn, &rt->nexthop);
+	}
+
 }
