@@ -54,16 +54,16 @@
 /*Data Structures*/
 
 //Routing tuple entry structure for the LOADng routing table.
-struct routing_tuple {
-	struct routing_tuple* next;
-	rimeaddr_t R_dest_addr;
-	rimeaddr_t R_next_addr;
-	struct dist_tuple R_dist;
-	uint16_t R_seq_num;
-	clock_time_t R_valid_time;
-	uint8_t R_metric:4;	//R_metric: type of routing metric. 0, by default, means using hop-count
-	uint8_t padding:4;	//not used, initialized to 0;
-};
+//struct routing_tuple {
+//	struct routing_tuple* next;
+//	rimeaddr_t R_dest_addr;
+//	rimeaddr_t R_next_addr;
+//	struct dist_tuple R_dist;
+//	uint16_t R_seq_num;
+//	clock_time_t R_valid_time;
+//	uint8_t R_metric:4;	//R_metric: type of routing metric. 0, by default, means using hop-count
+//	uint8_t padding:4;	//not used, initialized to 0;
+//};
 
 /*---------------------------------------------------------------------------*/
 
@@ -93,7 +93,7 @@ struct routing_tuple {
  * List of Routing Set.
  */
 LIST(route_set);
-MEMB(route_set_mem, struct routing_tuple, NUM_RS_ENTRIES);
+MEMB(route_set_mem, struct route_entry, NUM_RS_ENTRIES);
 /*
  * List of Blacklisted Neighbor Set
  */
@@ -109,6 +109,53 @@ static struct ctimer t;
 
 static int max_route_time = ROUTE_TIMEOUT;
 
+/*---------------------------------------------------------------------------*/
+//Periodically remove entries in Routing Set
+static void
+periodic(void *ptr)
+{
+  struct route_entry *e;
+  struct blacklist_tuple *b;
+  struct pending_entry *p;
+
+  for(e = list_head(route_set); e != NULL; e = list_item_next(e)) {
+    ++(e->R_valid_time);
+    if(e->R_valid_time >= max_route_time) {
+      PRINTF("route periodic: removing entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
+	     e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
+	     e->R_next_addr.u8[0], e->R_next_addr.u8[1],
+	     e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+      route_remove(e);
+    }
+  }
+  e = NULL;
+
+  //periodically remove entries in blacklist set while time out
+  for(b = list_head(blacklist_set); b != NULL; b = list_item_next(b)) {
+    --(b->B_valid_time);
+    if(b->B_valid_time == 0) {
+      PRINTF("route periodic: removing blacklisted neighbor %d.%d\n",
+		 b->B_neighbor_address.u8[0], b->B_neighbor_address.u8[1]);
+      blacklist_remove(b);
+    }
+  }
+  b = NULL;
+
+  //periodically add entries in pending set  to blacklist set while time out
+  for(p = list_head(pending_set); p != NULL; p = list_item_next(p)) {
+    --(p->P_ack_timeout);
+    if(p->P_ack_timeout == 0) {
+      PRINTF("route periodic: removing entry to %d.%d with nexthop %d.%d and seq_num %d\n",
+				p->P_originator.u8[0], p->P_originator.u8[1],
+				p->P_next_hop.u8[0], p->P_next_hop.u8[1],
+				p->P_seq_num);
+      pending_remove(p);
+    }
+  }
+  p = NULL;
+
+  ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
+}
 /*---------------------------------------------------------------------------*/
 //Allocates and initializes route tables.
 void
@@ -131,9 +178,9 @@ route_init(void)
 struct route_entry *
 route_lookup(const rimeaddr_t *dest)
 {
-	struct routing_tuple *e;
+	struct route_entry *e;
 	uint8_t lowest_cost;
-	struct routing_tuple *best_entry;
+	struct route_entry *best_entry;
 
 	lowest_cost = -1;	//lowest_cost is an unsigned int, -1 means the largest number
 	best_entry = NULL;
@@ -170,7 +217,7 @@ struct routing_entry *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 		struct dist_tuple *dist, uint16_t seqno)
 {
-	struct routing_tuple *e;
+	struct route_entry *e;
 
 	/* Avoid inserting duplicate entries. */
 	e = route_lookup(dest);
@@ -359,7 +406,7 @@ route_refresh(struct route_entry *e)
 	       out. */
 	    e->R_valid_time = 0;
 
-	    PRINTF("route_refresh: time %d for entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
+	    PRINTF("route_refresh: time %ld for entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
 	           e->R_valid_time,
 	           e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
 	           e->R_next_addr.u8[0], e->R_next_addr.u8[1],
@@ -412,53 +459,7 @@ blacklist_remove(struct blacklist_tuple *e)
 	  memb_free(&blacklist_set_mem, e);
 	}
 }
-/*---------------------------------------------------------------------------*/
-//Periodically remove entries in Routing Set
-static void
-periodic(void *ptr)
-{
-  struct routing_tuple *e;
-  struct blacklist_tuple *b;
-  struct pending_entry *p;
 
-  for(e = list_head(route_set); e != NULL; e = list_item_next(e)) {
-    ++(e->R_valid_time);
-    if(e->R_valid_time >= max_route_time) {
-      PRINTF("route periodic: removing entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
-	     e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
-	     e->R_next_addr.u8[0], e->R_next_addr.u8[1],
-	     e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
-      route_remove(e);
-    }
-  }
-  e = NULL;
-
-  //periodically remove entries in blacklist set while time out
-  for(b = list_head(blacklist_set); b != NULL; b = list_item_next(b)) {
-    --(b->B_valid_time);
-    if(b->B_valid_time == 0) {
-      PRINTF("route periodic: removing blacklisted neighbor %d.%d\n",
-		 b->B_neighbor_address.u8[0], b->B_neighbor_address.u8[1]);
-      blacklist_remove(b);
-    }
-  }
-  b = NULL;
-
-  //periodically add entries in pending set  to blacklist set while time out
-  for(p = list_head(pending_set); p != NULL; p = list_item_next(p)) {
-    --(p->P_ack_timeout);
-    if(p->P_ack_timeout == 0) {
-      PRINTF("route periodic: removing entry to %d.%d with nexthop %d.%d and seq_num %d\n",
-				p->P_originator.u8[0], p->P_originator.u8[1],
-				p->P_next_hop.u8[0], p->P_next_hop.u8[1],
-				p->P_seq_num);
-      pending_remove(p);
-    }
-  }
-  p = NULL;
-
-  ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
-}
 /*---------------------------------------------------------------------------*/
 //Not implemented and only maintained for compatibility.
 void
