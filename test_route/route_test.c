@@ -57,13 +57,14 @@ PROCESS_THREAD(route_test, ev, data)
   PROCESS_BEGIN();
   rimeaddr_t addr[ADDR_NUM];
   struct dist_tuple dist;
-  memset(dist, 0, sizeof(dist));
+  memset(&dist, 0, sizeof(dist));
   int i;
   //initialize address set
   for (i = 0; i < ADDR_NUM; i++) {
 	  addr[i].u8[0] = i;
 	  addr[i].u8[1] = i;
   }
+  route_init();
 
   for (i = 0; i < ADD_NUM; i++) {
 	  dist.route_cost = i;

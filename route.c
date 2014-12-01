@@ -72,11 +72,11 @@
 #define NUM_RS_ENTRIES 8
 #define NUM_BLACKLIST_ENTRIES 2 * NUM_RS_ENTRIES
 #define NUM_pending_ENTRIES NUM_RS_ENTRIES
-#define ROUTE_TIMEOUT 5 * CLOCK_SECOND
+#define ROUTE_TIMEOUT 5
 /*
  * not used
- * #define NET_TRAVERSAL_TIME 2 ∗ CLOCK_SECOND
- * #define BLACKLIST_TIME 10 ∗ CLOCK_SECOND
+ * #define NET_TRAVERSAL_TIME 2
+ * #define BLACKLIST_TIME 10
  */
 #define METRICS 0
 /*---------------------------------------------------------------------------*/
@@ -199,9 +199,9 @@ route_lookup(const rimeaddr_t *dest)
 	}
 	if (best_entry != NULL) {
 		PRINTF("route_lookup: found entry to %d.%d with nexthop %d.%d and metric type:%d cost: %d weak links: %d\n",
-			 e->R_dest_addr.u8[0], e->R_dest_addr.u8[1],
-			 e->R_next_addr.u8[0], e->R_next_addr.u8[1],
-			 e->R_metric, (e->R_dist).route_cost, (e->R_dist).weak_links);
+				best_entry->R_dest_addr.u8[0], best_entry->R_dest_addr.u8[1],
+				best_entry->R_next_addr.u8[0], best_entry->R_next_addr.u8[1],
+				best_entry->R_metric, (best_entry->R_dist).route_cost, (best_entry->R_dist).weak_links);
 		return best_entry;
 	} else {
 		PRINTF("route_lookup: cannot found entry to %d.%d\n",
