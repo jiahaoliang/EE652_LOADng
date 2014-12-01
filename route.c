@@ -65,22 +65,6 @@ struct routing_tuple {
 	uint8_t padding:4;	//not used, initialized to 0;
 };
 
-
-//Pending entry tuple structure for the Pending Acknowledgement Set.
-struct pending_entry {
-	struct pending_entry* next;
-	rimeaddr_t P_next_hop;
-	rimeaddr_t P_originator;
-	clock_time_t P_ack_timeout;
-	uint16_t P_seq_num;
-};
-//Blacklist tuple entry structure for the Blacklisted Neighbor Set.
-struct blacklist_tuple {
-	struct blacklist_tuple* next;
-	rimeaddr_t B_neighbor_address;
-	clock_time_t B_valid_time;
-};
-
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
