@@ -61,7 +61,7 @@ typedef struct general_message{
 	uint32_t route_metric;
 	uint8_t hop_limit;
 	uint8_t hop_count;
-	linkaddr_t orginator;
+	linkaddr_t originator;
 	linkaddr_t destination;
 	//TODO:only used for RREP
 	uint8_t ackrequired;
@@ -70,16 +70,18 @@ typedef struct general_message{
 //This structure stores the <message> field of a RREP-ACK packet.
 typedef struct rrep_ack_message_struture {
 	//uint8_t addr-length:4;
+	uint8_t type;
 	uint8_t seqno;
 	linkaddr_t destination;
 }rrep_ack_message;
 
 typedef struct rerr_message_struture {
 	//TODO:uint8_t addr-length:4;
+	uint8_t type;
 	uint8_t hop_limit;
 	uint8_t errorcode;
 	linkaddr_t unreachable;
-	linkaddr_t orginator;
+	linkaddr_t originator;
 	linkaddr_t destination;
 }rerr_message;
 
@@ -115,7 +117,15 @@ typedef struct rerr_message_struture {
 #define VERBOSE 1
 #define BACKOFF 1
 #define HOP_COUNT 0
+#define FALSE -1
+#define TRUE 0
+#define SENDREP 1
+#define FORWARD 2
+#define DROP 3
 #define MAXA(A,B) ( ((A>B)&&((A-B)<=(MAXVALUE/2)))||((A<B)&&((B-A)>(MAXVALUE/2))) )
+
+static uint8_t rreq_seqno = 0;
+static uint8_t rrep_seqno = 0;
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 /*check if rreq or rrep is valid return 0 means valid return -1 means invalid*/
@@ -123,42 +133,39 @@ typedef struct rerr_message_struture {
 int valid_check(struct general_message *input){
 	//address check is skipped;
 	struct route_entry *rt;
-	struct blacklist_tuple * bl;
+	struct blacklist_tuple *bl;
 
-	if(linkaddr_cmp(input->orginator,&linkaddr_node_addr)){
+	if(linkaddr_cmp(&input->originator,&linkaddr_node_addr)){
 	      PRINTF("Receive RREQ from itself\n");
-	      return -1;
+	      return FALSE;
 	}
 
-	rt = route_lookup(input->orginator);
+	rt = route_lookup(input->originator);
 	if((rt!=NULL) && MAXA(rt->seqno,input->seqno) ){
 	      PRINTF("Receive RREQ originator in already in routing table\n");
-	      return -1;
+	      return FALSE;
 	}
 	//TODO: received address is not present as linkaddr_t
 	if(input->type == RREQ_TYPE ){
 		rt = route_blacklist_lookup((linkaddr_t*)from);
 		if(rt!=NULL){
 			PRINTF("Receive RREQ previous is in black list\n");
-			return -1;
+			return FALSE;
 		}
 	}
-	return 0;
+	return TURE;
 }
-
+/*------------------------------------------------------------------------------------------------------------------------*/
 
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 static void
 send_rreq(struct route_discovery_conn *c, rreq_message *input)
 {
-	linkaddr_t dest_copy;
 	rreq_message *msg;
-	linkaddr_copy(&dest_copy, dest);
-	dest = &dest_copy;
 	packetbuf_clear();
 	msg = packetbuf_dataptr();
-	packetbuf_set_datalen(sizeof(struct rreq_message));
+	packetbuf_set_datalen(sizeof(rreq_message));
 	msg->type = RREQ_TYPE;
 	msg->metric_type = input->metric_type;
 	msg->route_metric = input->route_metric;
@@ -166,64 +173,53 @@ send_rreq(struct route_discovery_conn *c, rreq_message *input)
 	msg->hop_count = input->hop_count;
 	msg->hop_limit = input->hop_limit;
 	linkaddr_copy(&msg->destination,&input->destination);
-	linkaddr_copy(&msg->originator,linkaddr_node_addr);
-	netflood_send(&c->rreqconn, c->rreq_id);
-	c->rreq_id++;
+	linkaddr_copy(&msg->originator,&input->originator);
+	//netflood_send(&c->rreqconn, c->rreq_id);
+	netflood_send(&c->rreqconn, msg->seqno);
+	//c->rreq_id++;
 }
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 static void
-send_rrep(struct route_discovery_conn *c, const linkaddr_t *dest)
+send_rrep(struct route_discovery_conn *c, rrep_message *input)
 {
 	struct route_entry *rt;
-	linkaddr_t dest_copy;
 	rrep_message *msg;
-	linkaddr_copy(&dest_copy, dest);
-	dest = &dest_copy;
 	packetbuf_clear();
 	msg = packetbuf_dataptr();
-	packetbuf_set_datalen(sizeof(struct rreq_message));
+	packetbuf_set_datalen(sizeof( rrep_message));
 	msg->type = RREP_TYPE;
-	msg->metric_type = 0;
-	msg->route_metric = 0;
-	msg->seqno = 0;
-	msg->hop_count = 0;
-	msg->hop_limit = MAX_HOP_LIMIT;
-	linkaddr_copy(&msg->destination,dest);
-	linkaddr_copy(&msg->originator,linkaddr_node_addr);
+	msg->metric_type = input->metric_type;
+	msg->route_metric = input->route_metric;
+	msg->seqno = input->seqno;
+	msg->hop_count = input->hop_count;
+	msg->hop_limit = input->hop_limit;
+	linkaddr_copy(&msg->destination,&input->destination);
+	linkaddr_copy(&msg->originator,&input->originator);
 
-	rt = route_lookup(dest);
+	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
 	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
 		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
-		   dest->u8[0],dest->u8[1],
+		   &msg->destination->u8[0],&msg->destination->u8[1],
 		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
 	    unicast_send(&c->rrepconn, &rt->nexthop);
-	}
-	else {
-		PRINTF("%d.%d: no route for rrep to %d.%d\n",
-		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
-		   dest->u8[0],dest->u8[1]);
 	}
 }
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 static void
-send_rrep_ack(struct route_discovery_conn *c, rreq_message *input)
+send_rrep_ack(struct route_discovery_conn *c, rrep_ack_message *input)
 {
 	struct route_entry *rt;
-	linkaddr_t dest_copy;
 	rrep_ack_message *msg;
-	linkaddr_copy(&dest_copy, &input->orginator);
-	dest = &dest_copy;
 	packetbuf_clear();
 	msg = packetbuf_dataptr();
-	packetbuf_set_datalen(sizeof(struct rreq_message));
+	packetbuf_set_datalen(sizeof(rrep_ack_message));
 	msg->seqno = input->seqno;
+	linkaddr_copy(&msg->destination,&input->destination);
 
-	linkaddr_copy(&msg->destination,&input->orginator);
-
-	rt = route_lookup(input->orginator);
+	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
 	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
 		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
@@ -231,11 +227,7 @@ send_rrep_ack(struct route_discovery_conn *c, rreq_message *input)
 		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
 	    unicast_send(&c->rrepconn, &rt->nexthop);
 	}
-	else {
-		PRINTF("%d.%d: no route for rrep to %d.%d\n",
-		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
-		   dest->u8[0],dest->u8[1]);
-	}
+
 }
 /*------------------------------------------------------------------------------------------------------------------------*/
 static void
@@ -245,7 +237,7 @@ send_rerr(struct route_discovery_conn *c, rerr_message *input)
 	rerr_message *msg;
 	packetbuf_clear();
 	msg = packetbuf_dataptr();
-	packetbuf_set_datalen(sizeof(struct rerr_message));
+	packetbuf_set_datalen(sizeof( rerr_message));
 
 	msg->errorcode = input->errorcode;
 	msg->hop_limit = input->hop_limit;
@@ -265,8 +257,7 @@ send_rerr(struct route_discovery_conn *c, rerr_message *input)
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 static int
-rreq_msg_reveived(struct netflood_conn *nf, const linkaddr_t *from,
-		     const linkaddr_t *originator, uint8_t seqno, uint8_t hops)
+rreq_msg_reveived(struct netflood_conn *nf, const linkaddr_t *from)
 {
 	int ret_val = 0;
 	rreq_message *msg = packetbuf_dataptr();
@@ -275,30 +266,29 @@ rreq_msg_reveived(struct netflood_conn *nf, const linkaddr_t *from,
 	struct route_discovery_conn *c = (struct route_discovery_conn *)
     ((char *)nf - offsetof(struct route_discovery_conn, rreqconn));
 
-	PRINTF("%d.%d: rreq_packet_received from %d.%d hops %d  last %d.%d/%d\n",
+	PRINTF("%d.%d: rreq_packet_received from %d.%d\n",
 	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
-	 from->u8[0], from->u8[1],
-	 hops,
-     c->last_rreq_originator.u8[0],
-     c->last_rreq_originator.u8[1],
-	 c->last_rreq_id);
+	 from->u8[0], from->u8[1]);
 
 	ret_val = valid_check(msg);
 	if(ret_val!=0){
 		return ret_val;
 	}
 
+	//TODO:weak link ?
 	new_msg->hop_count = msg->hop_count + 1;
 	new_msg->hop_limit = msg->hop_limit - 1;
+	new_msg->seqno = msg->seqno;
 
 	//msg->type = 0 means use hop otherwise use other metrics
 	//TODO consider other metrics document 11.2.4 11.2.5
-	new_msg->type = msg_type;
+	new_msg->type = msg->type;
 
-	rt = route_lookup(msg->orginator);
+	rt = route_lookup(&msg->originator);
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
-		route_add(msg->orginator, from, dist, msg->seqno);
+		//route_add the third parameter should be metric?
+		route_add(msg->originator, from, msg->hop_count, msg->seqno);
 	}
 	else{
 		//TODO:
@@ -312,53 +302,71 @@ rreq_msg_reveived(struct netflood_conn *nf, const linkaddr_t *from,
 	     linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
       PRINTF("from %d.%d hops %d rssi %d lqi %d\n",
 	     from->u8[0], from->u8[1],
-	     hops,
 	     packetbuf_attr(PACKETBUF_ATTR_RSSI),
 	     packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY));
-      send_rrep(c, msg->orginator);
-      return 0; /* Don't continue to flood the rreq packet. */
+      send_rrep(c, msg->originator);
+      return SENDREP; /* Don't continue to flood the rreq packet. */
     }
     else {
       /*      PRINTF("route request for %d\n", msg->dest_id);*/
-      PRINTF("from %d.%d hops %d rssi %d lqi %d\n",
+      PRINTF("from %d.%d rssi %d lqi %d\n",
 	     from->u8[0], from->u8[1],
-	     hops,
 	     packetbuf_attr(PACKETBUF_ATTR_RSSI),
 	     packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY));
       if(msg->hop_count < MAX_HOP_COUNT && msg->hop_limits >0){
-      		send_rreq(c,&new_msg);
+    	  //generate new rrep
+    		rrep_message *msg1;
+    		packetbuf_clear();
+    		msg1 = packetbuf_dataptr();
+    		packetbuf_set_datalen(sizeof(struct rreq_message));
+    		msg1->type = RREP_TYPE;
+    		msg1->metric_type = 0;
+    		msg1->route_metric = 0;
+    		msg1->seqno = rrep_seqno;
+    		rrep_seqno++;
+    		msg1->hop_count = 0;
+    		msg1->hop_limit = MAX_HOP_LIMIT;
+    		linkaddr_copy(&msg1->destination,&msg->originator);
+    		linkaddr_copy(&msg1->originator,linkaddr_node_addr);
+      		send_rreq(c,&msg1);
+      		return FORWARD;
       }
-
-    return 1;
-  }
+    }
+    return DROP;
 }
 /*------------------------------------------------------------------------------------------------------------------------*/
 static int
 rrep_msg_reveived(struct unicast_conn *uc, const linkaddr_t *from)
 {
 	int ret_val = 0;
-	rrep_message *msg = packetbuf_dataptr();
-	rrep_message new_msg;
+	rreq_message *msg = packetbuf_dataptr();
+	rreq_message new_msg;
 	struct route_entry *rt;
 	struct route_discovery_conn *c = (struct route_discovery_conn *)
-    ((char *)nf - offsetof(struct route_discovery_conn, rreqconn));
+	    ((char *)uc - offsetof(struct route_discovery_conn, rrepconn));
 
+	PRINTF("%d.%d: rreq_packet_received from %d.%d\n",
+	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+	 from->u8[0], from->u8[1]);
 	ret_val = valid_check(msg);
 	if(ret_val!=0){
 		return ret_val;
 	}
 
+	//TODO:weak link ?
 	new_msg->hop_count = msg->hop_count + 1;
 	new_msg->hop_limit = msg->hop_limit - 1;
+	new_msg->seqno = msg->seqno;
 
 	//msg->type = 0 means use hop otherwise use other metrics
 	//TODO consider other metrics document 11.2.4 11.2.5
-	new_msg->type = msg_type;
+	new_msg->type = msg->type;
 
-	rt = route_lookup(msg->orginator);
+	rt = route_lookup(&msg->originator);
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
-		route_add(msg->orginator, from, dist, msg->seqno);
+		//route_add the third parameter should be metric?
+		route_add(msg->originator, from, msg->hop_count, msg->seqno);
 	}
 	else{
 		//TODO:
@@ -366,10 +374,15 @@ rrep_msg_reveived(struct unicast_conn *uc, const linkaddr_t *from)
 		//route_remove(struct route_entry *e);
 		//route_add();
 	}
-	if(msg->ackrequired){
+
+	/*if(msg->ackrequired){
 		send_rrep_ack(c,new_msg);
-	}
-	return 0;
+	}*/
+	if(!linkaddr_cmp(&msg->dest, &linkaddr_node_addr)) {
+	      send_rrep(c, &new_msg);
+	      return SENDREP; /* Don't continue to flood the rreq packet. */
+	    }
+	return TRUE;
 }
 
 /*------------------------------------------------------------------------------------------------------------------------*/
@@ -386,7 +399,7 @@ rerr_msg_process(struct unicast_conn *uc, const linkaddr_t *from)
 	new_msg->type = msg_type;
 
 	rt = route_lookup(msg->unreachable);
-	if(rt!==NULL &&linkaddr_cmp(rt->nexthop,from)){
+	if(rt != NULL && linkaddr_cmp(&rt->nexthop,from)){
 			route_remove(rt);
 			route_blacklist_add(rt);
 			if(msg->hop_limit>0){
@@ -431,6 +444,19 @@ timeout_handler(void *ptr)
   if(c->cb->timedout) {
     c->cb->timedout(c);
   }
+}
+/*------------------------------------------------------------------------------------------------------------------------*/
+void rreq_initial(rreq_message *msg,linkaddr_t *addr){
+
+	msg->type = RREQ_TYPE;
+	msg->metric_type = 0;
+	msg->route_metric = 0;
+	msg->seqno = rreq_seqno;
+	msg->hop_count = 0;
+	msg->hop_limit = MAX_HOP_LIMIT;
+	linkaddr_copy(&msg->destination,addr);
+	linkaddr_copy(&msg->originator,&linkaddr_node_addr);
+	rreq_seqno++;
 }
 
 /*------------------------------------------------------------------------------------------------------------------------*/

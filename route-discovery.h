@@ -83,11 +83,6 @@ struct route_discovery_conn {
   struct netflood_conn rreqconn;
   struct unicast_conn rrepconn;
   struct ctimer t;
-  rimeaddr_t last_rreq_originator;
-  uint16_t last_rreq_id;
-  uint16_t rreq_id;
-  uint16_t hop_count;
-  uint16_t hop_limit;
   const struct route_discovery_callbacks *cb;
 };
 
