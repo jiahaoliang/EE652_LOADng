@@ -292,7 +292,11 @@ rreq_msg_received(struct netflood_conn *nf, const rimeaddr_t *from)
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
 		//route_add the third parameter should be metric?
-		route_add(&msg->originator, from, msg->hop_count, msg->seqno);
+		struct dist_tuple new_tup;
+		new_tup.weak_links = 0;
+
+		new_tup.route_cost = msg->hop_count;
+		route_add(&msg->originator, from, &new_tup, msg->seqno);
 	}
 	else{
 		//TODO:
@@ -370,7 +374,10 @@ rrep_msg_received(struct unicast_conn *uc, const rimeaddr_t *from)
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
 		//route_add the third parameter should be metric?
-		route_add(msg->originator, from, msg->hop_count, msg->seqno);
+		struct dist_tuple new_tup;
+		new_tup.weak_links = 0;
+		new_tup.route_cost = msg->hop_count;
+		route_add(&msg->originator, from, &new_tup, msg->seqno);
 	}
 	else{
 		//TODO:
@@ -405,7 +412,8 @@ rerr_msg_process(struct unicast_conn *uc, const rimeaddr_t *from)
 	rt = route_lookup(&msg->unreachable);
 	if(rt != NULL && rimeaddr_cmp(&rt->R_next_addr,from)){
 			route_remove(rt);
-			route_blacklist_add(rt);
+			uint8_t time = 255;
+			route_blacklist_add(rt,time);
 			if(msg->hop_limit>0){
 				send_rerr(c,&new_msg);
 			}
