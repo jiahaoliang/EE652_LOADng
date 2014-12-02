@@ -1,5 +1,10 @@
 EE652_LOADng
 ============
+#TO DO#
+1. work with rerr
+2. update route by seqno
+3. weak link & blacklist
+
 #How To Use#
 1. contiki-2.7.zip is the Contiki OS we were working on. Please unzip it to the home/contiki folder.  
 2. Copy & paste `route.c, route.h, route-discovery.c, route-discovery.h, mesh.c` to `~/contiki/core/net/rime` folder, replacing original files.  
@@ -11,7 +16,7 @@ EE652_LOADng
  ```
  make TARGET=sky example-mesh
  ```
-5. Test it under Cooja, add a number of nodes programmed with example-mesh.sky 
+5. Test it under Cooja, add a number of nodes programmed with `example-mesh.sky` 
 6. "click button" on one of the nodes, it sends "Hello" message to node 1.1 with multihop.
 
 NOTE: All *.backup files are unchanged from original Contiki OS.
