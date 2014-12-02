@@ -53,6 +53,22 @@
 
 #include "net/rime/rimeaddr.h"
 
+//Pending entry tuple structure for the Pending Acknowledgement Set.
+struct pending_entry {
+	struct pending_entry* next;
+	rimeaddr_t P_next_hop;
+	rimeaddr_t P_originator;
+	clock_time_t P_ack_timeout;
+	uint16_t P_seq_num;
+};
+
+//Blacklist tuple entry structure for the Blacklisted Neighbor Set.
+struct blacklist_tuple {
+	struct blacklist_tuple* next;
+	rimeaddr_t B_neighbor_address;
+	clock_time_t B_valid_time;
+};
+
 //The distance structure consists of a tuple (route_cost, weak_links), and
 //works together with its correspondent metrics.
 struct dist_tuple {
@@ -80,13 +96,23 @@ void route_init(void);
 struct route_entry *
 route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
 		struct dist_tuple ∗dist, uint16_t seqno);
+struct routing_entry *route_add(const rimeaddr_t *dest,
+		const rimeaddr_t *nexthop, struct dist_tuple *dist, uint16_t seqno);
 struct route_entry *route_lookup(const rimeaddr_t *dest);
+struct pending_entry *route_pending_list_lookup (const rimeaddr_t *from,
+		const rimeaddr_t *orig, uint16_t seq_num);
+struct pending_entry *route_pending_add(const rimeaddr_t *nexthop,
+		const rimeaddr_t *dest, uint16_t RREQ_ID, clock_time_t timeout);
+struct blacklist_tuple *route_blacklist_lookup(const rimeaddr_t *addr );
+struct blacklist_tuple *route_blacklist_add(const rimeaddr_t *neighbor, clock_time_t timeout );
 void route_refresh(struct route_entry *e);
 void route_decay(struct route_entry *e);
 void route_remove(struct route_entry *e);
+void pending_remove(struct pending_entry *e);
+void blacklist_remove(struct blacklist_tuple *e);
+
 void route_flush_all(void);
 void route_set_lifetime(int seconds);
-
 int route_num(void);
 struct route_entry *route_get(int num);
 
