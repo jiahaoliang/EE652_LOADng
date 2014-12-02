@@ -93,9 +93,6 @@ struct route_entry {
 };
 
 void route_init(void);
-struct route_entry *
-route_add(const rimeaddr_t *dest, const rimeaddr_t *nexthop,
-		struct dist_tuple ∗dist, uint16_t seqno);
 struct routing_entry *route_add(const rimeaddr_t *dest,
 		const rimeaddr_t *nexthop, struct dist_tuple *dist, uint16_t seqno);
 struct route_entry *route_lookup(const rimeaddr_t *dest);
