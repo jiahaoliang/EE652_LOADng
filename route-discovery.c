@@ -112,6 +112,9 @@ typedef struct rerr_message_struture {
 #define EXPONENTIAL 1-uniform
 #define ACK_REQUIRED 1
 #define METRICS 0
+#define MAX_HOP_COUNT 255
+#define MAX_HOP_LIMIT 255
+#
 /*Defines*/
 #define MAXVALUE 255
 #define VERBOSE 1
@@ -126,29 +129,30 @@ typedef struct rerr_message_struture {
 
 static uint8_t rreq_seqno = 0;
 static uint8_t rrep_seqno = 0;
+static char rrep_pending = 0;
 
 /*------------------------------------------------------------------------------------------------------------------------*/
 /*check if rreq or rrep is valid return 0 means valid return -1 means invalid*/
 //TODO input is rreq or should be con
-int valid_check(struct general_message *input){
+int valid_check(struct general_message *input, const rimeaddr_t *from){
 	//address check is skipped;
 	struct route_entry *rt;
 	struct blacklist_tuple *bl;
 
-	if(rimeaddr_cmp(&input->originator,&linkaddr_node_addr)){
+	if(rimeaddr_cmp(&input->originator,&rimeaddr_node_addr)){
 	      PRINTF("Receive RREQ from itself\n");
 	      return FALSE;
 	}
 
-	rt = route_lookup(input->originator);
+	rt = route_lookup(&input->originator);
 	if((rt!=NULL) && MAXA(rt->R_seq_num,input->seqno) ){
 	      PRINTF("Receive RREQ originator in already in routing table\n");
 	      return FALSE;
 	}
-	//TODO: received address is not present as linkaddr_t
+	//TODO: received address is not present as rimeaddr_t
 	if(input->type == RREQ_TYPE ){
-		rt = route_blacklist_lookup((rimeaddr_t*)from);
-		if(rt!=NULL){
+		bl = route_blacklist_lookup(from);
+		if(bl!=NULL){
 			PRINTF("Receive RREQ previous is in black list\n");
 			return FALSE;
 		}
@@ -200,7 +204,7 @@ send_rrep(struct route_discovery_conn *c, rrep_message *input)
 	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
 	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
-		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+		   rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1],
 		   &msg->destination->u8[0],&msg->destination->u8[1],
 		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
 	    unicast_send(&c->rrepconn, &rt->R_next_addr);
@@ -222,7 +226,7 @@ send_rrep_ack(struct route_discovery_conn *c, rrep_ack_message *input)
 	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
 	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
-		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+		   rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1],
 		   dest->u8[0],dest->u8[1],
 		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
 	    unicast_send(&c->rrepconn, &rt->R_next_addr);
@@ -248,7 +252,7 @@ send_rerr(struct route_discovery_conn *c, rerr_message *input)
 	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
 	    PRINTF("%d.%d: send_rrep to %d.%d via %d.%d\n",
-		   linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+		   rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1],
 		   dest->u8[0],dest->u8[1],
 		   rt->nexthop.u8[0],rt->nexthop.u8[1]);
 	    unicast_send(&c->rrepconn, &rt->R_next_addr);
@@ -267,28 +271,28 @@ rreq_msg_received(struct netflood_conn *nf, const rimeaddr_t *from)
     ((char *)nf - offsetof(struct route_discovery_conn, rreqconn));
 
 	PRINTF("%d.%d: rreq_packet_received from %d.%d\n",
-	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+	 rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1],
 	 from->u8[0], from->u8[1]);
 
-	ret_val = valid_check(msg);
+	ret_val = valid_check(msg, from);
 	if(ret_val!=0){
 		return ret_val;
 	}
 
 	//TODO:weak link ?
-	new_msg->hop_count = msg->hop_count + 1;
-	new_msg->hop_limit = msg->hop_limit - 1;
-	new_msg->seqno = msg->seqno;
+	new_msg.hop_count = msg->hop_count + 1;
+	new_msg.hop_limit = msg->hop_limit - 1;
+	new_msg.seqno = msg->seqno;
 
 	//msg->type = 0 means use hop otherwise use other metrics
 	//TODO consider other metrics document 11.2.4 11.2.5
-	new_msg->type = msg->type;
+	new_msg.type = msg->type;
 
 	rt = route_lookup(&msg->originator);
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
 		//route_add the third parameter should be metric?
-		route_add(msg->originator, from, msg->hop_count, msg->seqno);
+		route_add(&msg->originator, from, msg->hop_count, msg->seqno);
 	}
 	else{
 		//TODO:
@@ -297,9 +301,9 @@ rreq_msg_received(struct netflood_conn *nf, const rimeaddr_t *from)
 		//route_add();
 	}
 
-    if(rimeaddr_cmp(&msg->destination, &linkaddr_node_addr)) {
+    if(rimeaddr_cmp(&msg->destination, &rimeaddr_node_addr)) {
       PRINTF("%d.%d: route_packet_received: route request for our address\n",
-	     linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+	     rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1]);
       PRINTF("from %d.%d hops %d rssi %d lqi %d\n",
 	     from->u8[0], from->u8[1],
 	     packetbuf_attr(PACKETBUF_ATTR_RSSI),
@@ -327,7 +331,7 @@ rreq_msg_received(struct netflood_conn *nf, const rimeaddr_t *from)
     		msg1->hop_count = 0;
     		msg1->hop_limit = MAX_HOP_LIMIT;
     		rimeaddr_copy(&msg1->destination,&msg->originator);
-    		rimeaddr_copy(&msg1->originator,linkaddr_node_addr);
+    		rimeaddr_copy(&msg1->originator,rimeaddr_node_addr);
       		send_rreq(c,&msg1);
       		return FORWARD;
       }
@@ -346,9 +350,9 @@ rrep_msg_received(struct unicast_conn *uc, const rimeaddr_t *from)
 	    ((char *)uc - offsetof(struct route_discovery_conn, rrepconn));
 
 	PRINTF("%d.%d: rreq_packet_received from %d.%d\n",
-	 linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1],
+	 rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1],
 	 from->u8[0], from->u8[1]);
-	ret_val = valid_check(msg);
+	ret_val = valid_check(msg, from);
 	if(ret_val!=0){
 		return ret_val;
 	}
@@ -378,7 +382,7 @@ rrep_msg_received(struct unicast_conn *uc, const rimeaddr_t *from)
 	/*if(msg->ackrequired){
 		send_rrep_ack(c,new_msg);
 	}*/
-	if(!rimeaddr_cmp(&msg->destination, &linkaddr_node_addr)) {
+	if(!rimeaddr_cmp(&msg->destination, &rimeaddr_node_addr)) {
 	      send_rrep(c, &new_msg);
 	      return SENDREP; /* Don't continue to flood the rreq packet. */
 	    }
@@ -396,7 +400,7 @@ rerr_msg_process(struct unicast_conn *uc, const rimeaddr_t *from)
     ((char *)uc - offsetof(struct route_discovery_conn, rreqconn));
 
 	new_msg->hop_limit = msg->hop_limit - 1;
-	new_msg->type = msg_type;
+	new_msg->type = msg->type;
 
 	rt = route_lookup(msg->unreachable);
 	if(rt != NULL && rimeaddr_cmp(&rt->R_next_addr,from)){
@@ -455,7 +459,7 @@ void rreq_initial(rreq_message *msg,rimeaddr_t *addr){
 	msg->hop_count = 0;
 	msg->hop_limit = MAX_HOP_LIMIT;
 	rimeaddr_copy(&msg->destination,addr);
-	rimeaddr_copy(&msg->originator,&linkaddr_node_addr);
+	rimeaddr_copy(&msg->originator,&rimeaddr_node_addr);
 	rreq_seqno++;
 }
 
@@ -499,7 +503,7 @@ route_discovery_rerr(struct route_discovery_conn *c, uint8_t Error_Code,const ri
 	msg->hop_limit = MAX_HOP_LIMIT;
 	rimeaddr_copy(&msg->unreachable,broken_dest_addr);
 	rimeaddr_copy(&msg->destination,broken_source_addr);
-	rimeaddr_copy(&msg->originator,&linkaddr_node_addr);
+	rimeaddr_copy(&msg->originator,&rimeaddr_node_addr);
 
 	rt = route_lookup(&msg->destination);
 	if(rt != NULL) {
