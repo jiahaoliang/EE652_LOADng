@@ -9,9 +9,10 @@ EE652_LOADng
  cd ~/contiki/examples/rime  
  ```  
  ```
- make example-unicast
+ make TARGET=sky example-mesh
  ```
-5. Test it under Cooja, debugging PRINTF( ) message should show up.
+5. Test it under Cooja, add a number of nodes programmed with example-mesh.sky 
+6. "click button" on one of the nodes, it sends "Hello" message to node 1.1 with multihop.
 
 NOTE: All *.backup files are unchanged from original Contiki OS.
 
@@ -36,8 +37,8 @@ route.c
 
 
 route-discovery.c  
-- [ ] route_discovery_open  
-- [ ] route_discovery_discover  
-- [ ] route_discovery_close  
+- [x] route_discovery_open  
+- [x] route_discovery_discover  
+- [x] route_discovery_close  
 - [ ] route_discovery_repair  
 - [ ] route_discovery_rerr  

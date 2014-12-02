@@ -72,7 +72,7 @@
 #define NUM_RS_ENTRIES 8
 #define NUM_BLACKLIST_ENTRIES 2 * NUM_RS_ENTRIES
 #define NUM_pending_ENTRIES NUM_RS_ENTRIES
-#define ROUTE_TIMEOUT 5
+#define ROUTE_TIMEOUT 50
 /*
  * not used
  * #define NET_TRAVERSAL_TIME 2
@@ -171,6 +171,8 @@ route_init(void)
 	  memb_init(&pending_set_mem);
 
 	  ctimer_set(&t, CLOCK_SECOND, periodic, NULL);
+
+	  PRINTF("route_init: done\n");
 }
 
 /*---------------------------------------------------------------------------*/
