@@ -1,8 +1,19 @@
 EE652_LOADng
 ============
-File location: ~/contiki/core/net/rime
+#How To Use#
+1. contiki-2.7.zip is the Contiki OS we were working on. Please unzip it to the home/contiki folder.  
+2. Copy & paste `route.c, route.h, route-discovery.c, route-discovery.h, mesh.c` to `~/contiki/core/net/rime` folder, replacing original files.  
+3. Copy & paste `uip-over-mesh.c` to  `~/contiki/core/net` folder, replacing original file.  
+4. Run following commandlines to test Rime with LOADng,   
+ ```  
+ cd ~/contiki/examples/rime  
+ ```  
+ ```
+ make example-unicast
+ ```
+5. Test it under Cooja, debugging PRINTF( ) message should show up.
 
-All *.backup files are unchanged from original Contiki OS.
+NOTE: All *.backup files are unchanged from original Contiki OS.
 
 *route.c, route-discovery.c* are files we are supposed to work on.
 
