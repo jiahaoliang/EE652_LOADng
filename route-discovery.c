@@ -296,10 +296,8 @@ rreq_msg_received(struct netflood_conn *nf, const rimeaddr_t *from)
 	if(ret_val!=0){
 		return ret_val;
 	}
-
 	rimeaddr_copy(&new_msg.destination,&msg->destination);
 	rimeaddr_copy(&new_msg.originator,&msg->originator);
-
 	rt = route_lookup(&msg->originator);
 	if(rt==NULL){
 		//TODO:check if route_add done 11.2.7 and check input parameter
@@ -407,7 +405,7 @@ rrep_msg_received(struct unicast_conn *uc, const rimeaddr_t *from)
 		new_msg.hop_count = msg->hop_count + 1;
 		new_msg.hop_limit = msg->hop_limit - 1;
 		new_msg.seqno = msg->seqno;
-		new_msg.route_metric = msg->route_metric;
+		new_msg.route_metric = msg->hop_count + 1;
 		new_msg.type = msg->type;
 		//msg->metric_type = 0 means use hop otherwise use other metrics
 		//TODO consider other metrics document 11.2.4 11.2.5
