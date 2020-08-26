@@ -1,12 +1,12 @@
-EE652_LOADng
+# EE652_LOADng
 [IETF: draft-clausen-lln-loadng-12](https://tools.ietf.org/html/draft-clausen-lln-loadng-12)
 ============
-#TO DO#
+## TO DO
 1. work with rerr
 2. update route by seqno
 3. weak link & blacklist
 
-#How To Use#
+## How To Use
 1. contiki-2.7.zip is the Contiki OS we were working on. Please unzip it to the home/contiki folder.  
 2. Copy & paste `route.c, route.h, route-discovery.c, route-discovery.h, mesh.c` to `~/contiki/core/net/rime` folder, replacing original files.  
 3. Copy & paste `uip-over-mesh.c` to  `~/contiki/core/net` folder, replacing original file.  
@@ -24,9 +24,9 @@ NOTE: All *.backup files are unchanged from original Contiki OS.
 
 *route.c, route-discovery.c* are files we are supposed to work on.
 
-#Functions need to implement#
+## Functions need to implement
 
-Please check out ***Implementation and Testing of LOADng: a Routing Protocol for WSN*** Section 5.3, 5.4
+Please check out ***Implementation and Testing of LOADng: a Routing Protocol for WSN by Alberto Camacho Martínez*** Section 5.3, 5.4
 
 - [x] Example to check a box at README.md  
 
@@ -48,3 +48,6 @@ route-discovery.c
 - [x] route_discovery_close  
 - [ ] route_discovery_repair  
 - [ ] route_discovery_rerr  
+
+## License
+[Apache License 2.0](https://raw.githubusercontent.com/jiahaoliang/EE652_LOADng/master/LICENSE)
