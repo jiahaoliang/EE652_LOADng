@@ -49,4 +49,4 @@ route-discovery.c
 - [ ] route_discovery_rerr  
 
 ## License
-[Apache License 2.0](https://raw.githubusercontent.com/jiahaoliang/EE652_LOADng/master/LICENSE)
+[3-clause BSD license](https://raw.githubusercontent.com/jiahaoliang/EE652_LOADng/master/LICENSE)
