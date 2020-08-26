@@ -1,7 +1,6 @@
-# EE652_LOADng
-[IETF: draft-clausen-lln-loadng-12](https://tools.ietf.org/html/draft-clausen-lln-loadng-12)
+# [LOADng Implememntation on Contiki](https://tools.ietf.org/html/draft-clausen-lln-loadng-12)
 ============
-## TO DO
+## TO DO (which we no longer work on)
 1. work with rerr
 2. update route by seqno
 3. weak link & blacklist
